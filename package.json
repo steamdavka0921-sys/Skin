@@ -1,0 +1,9 @@
+{
+  "name": "bestdrop-steam-auth",
+  "version": "1.0.0",
+  "description": "Steam Authentication for Case Opening Site",
+  "main": "index.html",
+  "dependencies": {
+    "axios": "^1.6.2"
+  }
+}
