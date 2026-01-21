@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BEST DROP - STEAM INTEGRATION</title>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700;800&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <style>
+        :root { 
+            --bg: #0b1016; --card: #1a2028; --primary: #ffb703; 
+            --border: #2d3436; 
+            --blue: #4b69ff; --purple: #8847ff; --pink: #d32ee6; --red: #eb4b4b; --gold: #ebc034; 
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Rajdhani', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background: var(--bg); color: white; padding-bottom: 90px; overflow-x: hidden; }
+        .container { padding: 12px; max-width: 1000px; margin: auto; }
+        .hidden { display: none !important; }
+
+        /* Rarity */
+        .rarity-milspec { border-bottom: 4px solid var(--blue); box-shadow: inset 0 -10px 10px -10px var(--blue); }
+        .rarity-restricted { border-bottom: 4px solid var(--purple); box-shadow: inset 0 -10px 10px -10px var(--purple); }
+        .rarity-classified { border-bottom: 4px solid var(--pink); box-shadow: inset 0 -10px 10px -10px var(--pink); }
+        .rarity-coverat { border-bottom: 4px solid var(--red); box-shadow: inset 0 -10px 15px -10px var(--red); }
+        .rarity-gold { border-bottom: 4px solid var(--gold); box-shadow: inset 0 -10px 15px -10px var(--gold); }
+
+        /* Header */
+        .header { background: rgba(26, 32, 40, 0.8); padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; backdrop-filter: blur(15px); }
+        .balance-box { display: flex; align-items: center; background: #000; border: 1.5px solid var(--primary); border-radius: 25px; padding: 6px 14px; cursor: pointer; }
+        .login-btn { background: var(--primary); color: #000; padding: 8px 16px; border-radius: 20px; font-weight: 800; text-decoration: none; font-size: 14px; text-transform: uppercase; }
+
+        /* Grid */
+        .cat-title { color: var(--primary); font-size: 1rem; margin: 25px 0 12px 0; border-left: 4px solid var(--primary); padding-left: 10px; text-transform: uppercase; }
+        .items-grid { display: grid; gap: 12px; margin-bottom: 20px; grid-template-columns: repeat(2, 1fr); }
+        @media (min-width: 600px) { .items-grid { grid-template-columns: repeat(3, 1fr); } }
+
+        .item-card { background: #12161d; border-radius: 12px; border: 1px solid var(--border); position: relative; overflow: hidden; height: 160px; display: flex; flex-direction: column; justify-content: flex-end; cursor: pointer; }
+        .item-card img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; transition: 0.3s; }
+        .item-card:hover img { transform: scale(1.05); }
+        .card-info { position: relative; z-index: 2; background: linear-gradient(transparent, rgba(0,0,0,0.9)); width: 100%; padding: 8px; text-align: center; }
+        .card-info p { font-size: 10px; color: #fff; font-weight: 700; text-transform: uppercase; }
+        .card-info b { color: var(--primary); font-size: 14px; }
+
+        /* Slots */
+        .exchange-slot { background: #0b1016; border: 2px dashed var(--border); border-radius: 12px; height: 120px; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+        .exchange-slot img { max-width: 80%; max-height: 80%; object-fit: contain; }
+        .exchange-slot.filled { border-style: solid; border-color: var(--primary); }
+
+        /* Upgrade Circle */
+        .up-circle-container { width: 160px; height: 160px; position: relative; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #12161d; border: 4px solid var(--border); margin: 0 auto; }
+        #up-chance-text { font-size: 32px; font-weight: 800; color: var(--primary); }
+
+        /* Modals */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 4000; opacity: 0; visibility: hidden; transition: 0.3s; display: flex; align-items: flex-end; }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        .dep-modal-content { background: var(--card); padding: 25px; border-radius: 25px 25px 0 0; width: 100%; max-height: 90vh; overflow-y: auto; transform: translateY(100%); transition: 0.3s; }
+        .modal-overlay.active .dep-modal-content { transform: translateY(0); }
+
+        .btn-main { background: var(--primary); color: #000; border: none; padding: 16px; border-radius: 14px; font-weight: 800; width: 100%; cursor: pointer; text-transform: uppercase; }
+        .btn-main:disabled { background: #444; color: #777; cursor: not-allowed; }
+
+        /* Bottom Nav */
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; height: 70px; background: #1a1f29; display: flex; border-top: 1px solid var(--border); z-index: 2500; }
+        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #7f8c8d; font-size: 11px; cursor: pointer; }
+        .nav-item.active { color: var(--primary); }
+        .nav-icon { width: 22px; height: 22px; fill: currentColor; margin-bottom: 4px; }
+
+        /* Case Modal */
+        #case-modal { position: fixed; inset: 0; background: var(--bg); z-index: 3000; display: none; overflow-y: auto; }
+        #case-modal.active { display: block; }
+        .track-wrap { width: 100%; height: 130px; background: #080a0e; border: 1px solid var(--border); position: relative; overflow: hidden; margin: 20px 0; }
+        .track-pointer { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: var(--primary); z-index: 10; box-shadow: 0 0 10px var(--primary); }
+        #p-track { display: flex; align-items: center; height: 100%; }
+
+        /* Popups */
+        .win-popup { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 5000; display: none; align-items: center; justify-content: center; padding: 20px; }
+        .win-popup.active { display: flex; }
+        .win-card { background: var(--card); border: 2px solid var(--primary); padding: 30px; border-radius: 20px; text-align: center; width: 100%; max-width: 320px; }
+
+        /* Profile & Inventory */
+        .profile-card { background: var(--card); border-radius: 20px; padding: 20px; text-align: center; margin-bottom: 20px; border: 1px solid var(--border); }
+        .p-avatar { width: 80px; height: 80px; border-radius: 50%; border: 3px solid var(--primary); margin-bottom: 10px; }
+        
+        /* Steam Inventory Grid in Deposit */
+        .steam-inv-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-height: 300px; overflow-y: auto; background: #000; padding: 10px; border-radius: 10px; margin: 15px 0; }
+        .steam-item { background: #1a2028; border: 1px solid #333; padding: 5px; border-radius: 5px; text-align: center; cursor: pointer; }
+        .steam-item.selected { border-color: var(--primary); background: #252b35; }
+        .steam-item img { width: 100%; height: 50px; object-fit: contain; }
+        .steam-item p { font-size: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* Locked State overlay */
+        .locked-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 5; font-weight: 800; color: var(--primary); font-size: 12px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h2 onclick="location.reload()" style="cursor:pointer">BEST<span style="color:var(--primary)">DROP</span></h2>
+        <div id="header-user-area">
+            <a href="/.netlify/functions/steam-login" class="login-btn">Log In Steam</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="home-sec">
+            <div class="event-banner">
+                <img src="https://res.cloudinary.com/dpdsuhwa9/image/upload/v1768822934/wzmn09skaumz9pjtuhdi.png" style="width:100%; border-radius:15px; margin-bottom:15px;">
+            </div>
+            <div id="dynamic-content"></div>
+        </div>
+
+        <div id="battle-sec" class="hidden">
+            <div id="battle-locked" class="profile-card">
+                <p>Please log in to participate in battles</p>
+                <a href="/.netlify/functions/steam-login" class="login-btn" style="display:inline-block; margin-top:10px;">Login</a>
+            </div>
+            <div id="battle-content" class="hidden">
+                <h3 class="cat-title">Live Battles</h3>
+                <div id="battle-list" style="background:var(--card); padding:15px; border-radius:15px;">
+                    <p style="text-align:center; color:#555;">No active battles. Start one!</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="exchange-sec" class="hidden">
+            <div id="ex-locked" class="profile-card">
+                <p>Login required for skin exchange</p>
+            </div>
+            <div id="ex-content" class="hidden">
+                <div style="display:grid; grid-template-columns: 1fr 40px 1fr; align-items:center; gap:10px; margin-bottom:20px;">
+                    <div id="slot-user" class="exchange-slot">+</div>
+                    <div style="text-align:center; color:var(--primary);">⇄</div>
+                    <div id="slot-target" class="exchange-slot">+</div>
+                </div>
+                <h2 id="ex-diff" style="text-align:center; color:var(--primary); margin-bottom:15px;">$0.00</h2>
+                <button id="ex-confirm-btn" class="btn-main" disabled onclick="executeExchange()">Exchange Skins</button>
+                <h3 class="cat-title">Your Inventory</h3>
+                <div id="ex-inv-grid" class="items-grid"></div>
+                <h3 class="cat-title">Library</h3>
+                <div id="ex-lib-grid" class="items-grid"></div>
+            </div>
+        </div>
+
+        <div id="up-sec" class="hidden">
+            <div id="up-locked" class="profile-card">
+                <p>Login to upgrade your skins</p>
+            </div>
+            <div id="up-content" class="hidden">
+                <div style="display:flex; justify-content:space-around; align-items:center; margin-bottom:20px;">
+                    <div id="u-slot-user" class="exchange-slot" style="flex:1;">+</div>
+                    <div class="up-circle-container"><div id="up-chance-text">0%</div></div>
+                    <div id="u-slot-target" class="exchange-slot" style="flex:1;">+</div>
+                </div>
+                <button id="up-confirm-btn" class="btn-main" disabled onclick="executeUpgrade()">Upgrade</button>
+                <h3 class="cat-title">Select Skin</h3>
+                <div id="up-inv-grid" class="items-grid"></div>
+                <h3 class="cat-title">Target</h3>
+                <div id="up-lib-grid" class="items-grid"></div>
+            </div>
+        </div>
+
+        <div id="profile-sec" class="hidden">
+            <div id="profile-locked" class="profile-card">
+                <p>Connect your Steam account to see profile</p>
+                <a href="/.netlify/functions/steam-login" class="login-btn" style="display:inline-block; margin-top:10px;">Login</a>
+            </div>
+            <div id="profile-content" class="hidden">
+                <div class="profile-card">
+                    <img id="p-avatar" class="p-avatar" src="">
+                    <h2 id="p-name">---</h2>
+                    <p id="p-id" style="font-size:12px; color:#555;"></p>
+                </div>
+                <h3 class="cat-title">Inventory</h3>
+                <div id="inv-list" class="items-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="dep-modal" class="modal-overlay" onclick="closeDepModal()">
+        <div class="dep-modal-content" onclick="event.stopPropagation()">
+            <div id="dep-main-view">
+                <h3 style="text-align:center; margin-bottom:20px;">Deposit</h3>
+                <div class="items-grid">
+                    <div class="item-card" style="height:100px;" onclick="showTradeStep()">
+                        <img src="https://res.cloudinary.com/dpdsuhwa9/image/upload/v1768745122/thdrqjraphe58ggfclsl.webp">
+                        <div class="card-info"><b>SKINS</b></div>
+                    </div>
+                    <div class="item-card" style="height:100px;" onclick="alert('Coming soon')">
+                        <img src="https://res.cloudinary.com/dpdsuhwa9/image/upload/v1768745122/nxwoi2yquthgoqvegtwg.webp">
+                        <div class="card-info"><b>CRYPTO</b></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="dep-trade-view" class="hidden">
+                <h3 style="text-align:center;">Skin Deposit</h3>
+                <input type="text" id="trade-url-input" style="width:100%; background:#000; border:1px solid var(--border); padding:12px; color:white; margin:15px 0; border-radius:10px;" placeholder="Enter Steam Trade URL">
+                
+                <p style="font-size:12px; color:var(--primary);">Select items from your Steam Inventory:</p>
+                <div id="steam-inventory-loader" class="hidden">Loading items...</div>
+                <div id="steam-inventory-grid" class="steam-inv-grid">
+                    </div>
+
+                <button id="send-request-btn" class="btn-main" disabled onclick="submitDepositRequest()">Send Deposit Request</button>
+                <button class="btn-main" style="background:#222; margin-top:10px;" onclick="backToDepMain()">Back</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="case-modal">
+        <div style="padding:20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h2 id="open-case-name">Case</h2>
+                <button onclick="closeCase()" style="background:none; border:none; color:white; font-size:24px;">✕</button>
+            </div>
+            <div class="track-wrap">
+                <div class="track-pointer"></div>
+                <div id="p-track"></div>
+            </div>
+            <button id="spin-btn" class="btn-main" onclick="startSpin()">Open for $<span id="open-case-price">0</span></button>
+            <div id="case-skins-list" class="items-grid" style="margin-top:20px;"></div>
+        </div>
+    </div>
+
+    <div id="win-popup" class="win-popup">
+        <div class="win-card">
+            <h3 style="color:var(--primary); margin-bottom:10px;">YOU DROPPED</h3>
+            <img id="win-img" src="" style="width:150px; height:150px; object-fit:contain;">
+            <p id="win-name" style="font-weight:800; margin:10px 0;"></p>
+            <b id="win-price" style="color:var(--primary); font-size:20px;"></b>
+            <button class="btn-main" style="margin-top:20px;" onclick="closeWinPopup()">Collect Skin</button>
+        </div>
+    </div>
+
+    <nav class="bottom-nav">
+        <div class="nav-item active" onclick="showPage('home')"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>Home</div>
+        <div class="nav-item" onclick="showPage('battle')"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M13 2v2.67c3.59.52 6.42 3.48 6.94 7.15H22v2h-2.06c-.52 3.67-3.35 6.63-6.94 7.15V22h-2v-2.18c-3.18-.46-5.74-2.85-6.57-5.97L3.46 15c-.17-.64-.26-1.31-.26-2s.09-1.36.26-2l.97 1.15c.83-3.12 3.39-5.51 6.57-5.97V2h2z"/></svg>Battle</div>
+        <div class="nav-item" onclick="showPage('exchange')"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M16 17.01V10h-2v7.01h-3L15 21l4-3.99h-3zM9 3L5 6.99h3V14h2V6.99h3L9 3z"/></svg>Ex</div>
+        <div class="nav-item" onclick="showPage('up')"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>Up</div>
+        <div class="nav-item" onclick="showPage('profile')"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4-1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>Me</div>
+    </nav>
+
+    <script>
+        // FIREBASE INITIALIZATION
+        const firebaseConfig = { 
+            apiKey: "AIzaSyA7jQ9vtZPmxhJQNYO6Ebrnhj2_QlklMTI", 
+            authDomain: "clean-5ae13.firebaseapp.com", 
+            projectId: "clean-5ae13", 
+            storageBucket: "clean-5ae13.firebasestorage.app", 
+            appId: "1:78759275410:web:caf4dae29260d3a5d52f4b" 
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // STATE
+        let currentUser = null; // Буюу SteamID
+        let userData = { balance: 0, inventory: [], tradeUrl: "" };
+        let allCases = [];
+        let librarySkins = [];
+        let selectedSteamItems = [];
+
+        // AUTH CHECK (On Load)
+        async function checkAuth() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const steamIdFromUrl = urlParams.get('steamid');
+            
+            if (steamIdFromUrl) {
+                localStorage.setItem('steam_id', steamIdFromUrl);
+                // URL-аас steamid-г цэвэрлэх
+                window.history.replaceState({}, document.title, "/");
+            }
+
+            currentUser = localStorage.getItem('steam_id');
+            
+            if (currentUser) {
+                setupUserSync();
+                // Нэвтэрсэн үед харагдах UI
+                document.getElementById('header-user-area').innerHTML = `
+                    <div class="balance-box" onclick="openDepModal()">
+                        <div class="add-icon">+</div>
+                        <div id="balance-display" class="balance-val">$0.00</div>
+                    </div>
+                `;
+                // Секцүүдийг нээх
+                document.getElementById('battle-locked').classList.add('hidden');
+                document.getElementById('battle-content').classList.remove('hidden');
+                document.getElementById('ex-locked').classList.add('hidden');
+                document.getElementById('ex-content').classList.remove('hidden');
+                document.getElementById('up-locked').classList.add('hidden');
+                document.getElementById('up-content').classList.remove('hidden');
+                document.getElementById('profile-locked').classList.add('hidden');
+                document.getElementById('profile-content').classList.remove('hidden');
+            }
+        }
+
+        function setupUserSync() {
+            db.collection('users').doc(currentUser).onSnapshot(doc => {
+                if (doc.exists()) {
+                    userData = doc.data();
+                    if(document.getElementById('balance-display')) {
+                        document.getElementById('balance-display').innerText = `$${(userData.balance || 0).toFixed(2)}`;
+                    }
+                    document.getElementById('p-name').innerText = userData.displayName || "Steam User";
+                    document.getElementById('p-avatar').src = userData.avatar || "https://ui-avatars.com/api/?name=U";
+                    document.getElementById('p-id').innerText = "SteamID: " + currentUser;
+                    if(userData.tradeUrl) document.getElementById('trade-url-input').value = userData.tradeUrl;
+                    renderInv();
+                } else {
+                    // Шинэ хэрэглэгч үүсгэх (Анх удаа нэвтэрч байвал)
+                    db.collection('users').doc(currentUser).set({
+                        balance: 0,
+                        inventory: [],
+                        total_spent: 0,
+                        tradeUrl: "",
+                        displayName: "Steam Player",
+                        avatar: ""
+                    });
+                }
+            });
+        }
+
+        // LOAD DATA (Cases & Library)
+        async function loadData() {
+            await checkAuth();
+            const casesSnap = await db.collection('active_cases').get();
+            const catsSnap = await db.collection('categories').orderBy('order').get();
+
+            allCases = casesSnap.docs.map(doc => ({id: doc.id, ...doc.data()}));
+            const categories = catsSnap.docs.map(doc => ({id: doc.id, ...doc.data()}));
+
+            // Library Skins build
+            const skinMap = new Map();
+            allCases.forEach(c => { if(c.skins) c.skins.forEach(s => skinMap.set(s.name, s)); });
+            librarySkins = Array.from(skinMap.values()).sort((a,b) => a.winPrice - b.winPrice);
+
+            let homeHtml = '';
+            categories.forEach(cat => {
+                const catCases = allCases.filter(c => c.categoryId === cat.id);
+                if(catCases.length > 0) {
+                    homeHtml += `<div class="cat-title">${cat.name}</div><div class="items-grid">`;
+                    catCases.forEach(c => homeHtml += renderCaseCard(c));
+                    homeHtml += `</div>`;
+                }
+            });
+
+            // Rule 3: Featured cases
+            const featured = allCases.filter(c => !c.categoryId || c.categoryId === "");
+            if(featured.length > 0) {
+                homeHtml += `<div class="cat-title">Featured Cases</div><div class="items-grid">`;
+                featured.forEach(c => homeHtml += renderCaseCard(c));
+                homeHtml += `</div>`;
+            }
+
+            document.getElementById('dynamic-content').innerHTML = homeHtml;
+            renderLibrary();
+        }
+
+        function renderCaseCard(c) {
+            const isLocked = !currentUser;
+            return `
+                <div class="item-card" onclick="${isLocked ? "alert('Please login to open cases')" : `openCaseUI('${c.id}')`}">
+                    ${isLocked ? '<div class="locked-overlay">LOGIN TO OPEN</div>' : ''}
+                    <img src="${c.bannerImg}">
+                    <div class="card-info"><p>${c.name}</p><b>$${(c.price || 0).toFixed(2)}</b></div>
+                </div>`;
+        }
+
+        // DEPOSIT SYSTEM (STEAM SKINS)
+        async function showTradeStep() {
+            if(!currentUser) return alert("Login First");
+            document.getElementById('dep-main-view').classList.add('hidden');
+            document.getElementById('dep-trade-view').classList.remove('hidden');
+            
+            // Стим инвентор дуудах (Netlify function ашиглана)
+            const grid = document.getElementById('steam-inventory-grid');
+            grid.innerHTML = "Loading your Steam items...";
+            
+            try {
+                const response = await fetch(`/.netlify/functions/get-steam-inventory?steamid=${currentUser}`);
+                const data = await response.json();
+                
+                if(data.items && data.items.length > 0) {
+                    grid.innerHTML = data.items.map(item => `
+                        <div class="steam-item" onclick="toggleSteamSelection(this, '${item.assetid}', '${item.name}', '${item.image}')">
+                            <img src="${item.image}">
+                            <p>${item.name}</p>
+                        </div>
+                    `).join('');
+                } else {
+                    grid.innerHTML = "No tradable CS2 items found.";
+                }
+            } catch (e) {
+                grid.innerHTML = "Error loading inventory. Ensure your profile is public.";
+            }
+        }
+
+        function toggleSteamSelection(el, id, name, img) {
+            el.classList.toggle('selected');
+            const idx = selectedSteamItems.findIndex(i => i.id === id);
+            if(idx > -1) selectedSteamItems.splice(idx, 1);
+            else selectedSteamItems.push({id, name, img});
+            
+            document.getElementById('send-request-btn').disabled = (selectedSteamItems.length === 0);
+        }
+
+        async function submitDepositRequest() {
+            const url = document.getElementById('trade-url-input').value;
+            if(!url.includes('tradeoffer/new')) return alert("Invalid Trade URL");
+
+            // Firestore руу хүсэлт илгээх
+            await db.collection('deposit_requests').add({
+                steamId: currentUser,
+                items: selectedSteamItems,
+                tradeUrl: url,
+                status: 'pending',
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                username: userData.displayName || "Unknown"
+            });
+
+            // Trade URL-г хадгалах
+            await db.collection('users').doc(currentUser).update({ tradeUrl: url });
+
+            alert("Request sent! Admin will verify and add balance soon.");
+            closeDepModal();
+        }
+
+        // CASE OPEN LOGIC
+        function openCaseUI(id) {
+            const c = allCases.find(x => x.id === id);
+            window.activeCase = c;
+            document.getElementById('open-case-name').innerText = c.name;
+            document.getElementById('open-case-price').innerText = c.price.toFixed(2);
+            
+            const track = document.getElementById('p-track');
+            track.style.transition = 'none';
+            track.style.transform = 'translateX(0)';
+            track.innerHTML = Array(60).fill().map(() => {
+                const s = c.skins[Math.floor(Math.random() * c.skins.length)];
+                return `<div style="min-width:120px; text-align:center;"><img src="${s.img_code}" style="width:90px;"></div>`;
+            }).join('');
+
+            document.getElementById('case-modal').classList.add('active');
+        }
+
+        async function startSpin() {
+            const c = window.activeCase;
+            if(userData.balance < c.price) return alert("Insufficient balance!");
+            
+            document.getElementById('spin-btn').disabled = true;
+            
+            // Logic: Random winner based on chances
+            const roll = Math.random() * 100;
+            let sum = 0; let win = c.skins[0];
+            for(let s of c.skins) { sum += parseFloat(s.chance); if(roll <= sum) { win = s; break; } }
+
+            const track = document.getElementById('p-track');
+            track.querySelectorAll('div')[50].innerHTML = `<img src="${win.img_code}" style="width:90px;">`;
+            
+            const finalPos = (50 * 120) - (window.innerWidth / 2) + 60;
+            track.style.transition = 'transform 5s cubic-bezier(0.1, 0, 0, 1)';
+            track.style.transform = `translateX(-${finalPos}px)`;
+
+            setTimeout(async () => {
+                showWinPopup(win);
+                await db.collection('users').doc(currentUser).update({
+                    balance: firebase.firestore.FieldValue.increment(-c.price),
+                    inventory: firebase.firestore.FieldValue.arrayUnion({...win, id: Date.now()})
+                });
+                document.getElementById('spin-btn').disabled = false;
+            }, 5200);
+        }
+
+        // UI HELPERS
+        function showPage(id) {
+            ['home-sec', 'battle-sec', 'exchange-sec', 'up-sec', 'profile-sec'].forEach(s => document.getElementById(s).classList.add('hidden'));
+            document.getElementById(id + '-sec').classList.remove('hidden');
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            const navMap = {'home':0, 'battle':1, 'exchange':2, 'up':3, 'profile':4};
+            document.querySelectorAll('.nav-item')[navMap[id]].classList.add('active');
+        }
+
+        function renderInv() {
+            const html = userData.inventory.map(s => `
+                <div class="item-card ${rarityMap[s.rarity] || ''}" style="height:120px;">
+                    <img src="${s.img_code}" style="object-fit:contain; padding:10px;">
+                    <div class="card-info"><p>${s.name}</p><b>$${s.winPrice}</b></div>
+                </div>`).join('');
+            document.getElementById('inv-list').innerHTML = html;
+            document.getElementById('ex-inv-grid').innerHTML = html;
+            document.getElementById('up-inv-grid').innerHTML = html;
+        }
+
+        function renderLibrary() {
+            const html = librarySkins.map(s => `
+                <div class="item-card ${rarityMap[s.rarity] || ''}" style="height:120px;">
+                    <img src="${s.img_code}" style="object-fit:contain; padding:10px;">
+                    <div class="card-info"><p>${s.name}</p><b>$${s.winPrice}</b></div>
+                </div>`).join('');
+            document.getElementById('ex-lib-grid').innerHTML = html;
+            document.getElementById('up-lib-grid').innerHTML = html;
+        }
+
+        function openDepModal() { document.getElementById('dep-modal').classList.add('active'); }
+        function closeDepModal() { document.getElementById('dep-modal').classList.remove('active'); }
+        function backToDepMain() { document.getElementById('dep-trade-view').classList.add('hidden'); document.getElementById('dep-main-view').classList.remove('hidden'); }
+        function closeCase() { document.getElementById('case-modal').classList.remove('active'); }
+        function showWinPopup(win) {
+            document.getElementById('win-img').src = win.img_code;
+            document.getElementById('win-name').innerText = win.name;
+            document.getElementById('win-price').innerText = `$${win.winPrice}`;
+            document.getElementById('win-popup').classList.add('active');
+        }
+        function closeWinPopup() { document.getElementById('win-popup').classList.remove('active'); closeCase(); }
+
+        window.onload = loadData;
+    </script>
+</body>
+  </html>
