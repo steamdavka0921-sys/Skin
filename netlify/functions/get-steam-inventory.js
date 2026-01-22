@@ -2,49 +2,65 @@ const axios = require('axios');
 
 exports.handler = async (event) => {
     const steamId = event.queryStringParameters.steamid;
-    // Netlify Dashboard -> Site Settings -> Environment Variables-д STEAM_API_KEY-г хийхээ мартуузай
-    const API_KEY = process.env.STEAM_API_KEY; 
+    
+    // Header setup for CORS
+    const headers = {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Allow-Methods": "GET"
+    };
 
     if (!steamId) {
-        return { 
-            statusCode: 400, 
-            body: JSON.stringify({ error: "SteamID is required" }) 
-        };
+        return { statusCode: 400, headers, body: JSON.stringify({ error: "SteamID is required" }) };
     }
 
     try {
-        // Steam Community Inventory API
-        const response = await axios.get(`https://steamcommunity.com/inventory/${steamId}/730/2?l=english&count=500`);
-        
-        if (!response.data || !response.data.descriptions) {
-            return {
-                statusCode: 200,
-                body: JSON.stringify({ items: [], message: "Inventory is empty or private" })
-            };
+        // Steam Inventory API - CS2 AppID: 730, ContextID: 2
+        const response = await axios.get(
+            `https://steamcommunity.com/inventory/${steamId}/730/2?l=english&count=5000`
+        );
+
+        if (!response.data || !response.data.assets || !response.data.descriptions) {
+            return { statusCode: 200, headers, body: JSON.stringify({ items: [] }) };
         }
 
-        const items = response.data.descriptions.map(desc => {
-            return {
-                assetid: desc.classid,
-                name: desc.market_hash_name,
-                image: `https://community.cloudflare.steamstatic.com/public/images/econ/characters/${desc.icon_url}`,
-                tradable: desc.tradable
-            };
-        }).filter(item => item.tradable === 1); 
+        const assets = response.data.assets;
+        const descriptions = response.data.descriptions;
+
+        // Зөвхөн зарах боломжтой (tradable) скинүүдийг шүүх
+        const items = assets.map(asset => {
+            const desc = descriptions.find(d => d.classid === asset.classid && d.instanceid === asset.instanceid);
+            
+            if (desc && desc.tradable === 1) {
+                return {
+                    assetid: asset.assetid,
+                    name: desc.market_hash_name,
+                    // Steam-ийн CDN-ээс зургийн URL-г бүтнээр нь угсрах
+                    image: `https://community.cloudflare.steamstatic.com/public/images/econ/characters/${desc.icon_url}`,
+                    rarity: desc.tags.find(t => t.category === "Rarity")?.name || "Normal"
+                };
+            }
+            return null;
+        }).filter(item => item !== null);
 
         return {
             statusCode: 200,
-            headers: { 
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*" 
-            },
+            headers,
             body: JSON.stringify({ items })
         };
+
     } catch (error) {
-        console.error("Steam API Error:", error.message);
+        console.error("Inventory Fetch Error:", error.message);
+        
+        // Стим инвентор хаалттай (Private) үед гардаг алдааг барих
         return {
             statusCode: 500,
-            body: JSON.stringify({ error: "Inventory is private or Steam API is down" })
+            headers,
+            body: JSON.stringify({ 
+                error: "Could not fetch inventory. Ensure your Steam Profile & Inventory are set to PUBLIC.",
+                details: error.message 
+            })
         };
     }
 };
